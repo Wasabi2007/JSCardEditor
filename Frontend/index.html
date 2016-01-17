@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Cardeditor</title>
+    <script type="text/javascript" src="js/jquery-2.2.0.js"></script>
+    <script>
+        function guid() {
+            function s4() {
+                return Math.floor((1 + Math.random()) * 0x10000)
+                        .toString(16)
+                        .substring(1);
+            }
+            return s4() + s4() + '-' + s4() + '-' + s4() + '-' +
+                    s4() + '-' + s4() + s4() + s4();
+        }
+
+        var figth_balance_values = [0,2,5,9,14];
+        var def_balance_values = [20,0,2,5,9];
+        var mana_values = [];
+        mana_values[16]= 4;
+        mana_values[24]= 8;
+        var basic_actions = [];
+        basic_actions["Pray"] = -1;
+        basic_actions["Curse"] = -1;
+        basic_actions["Figth"] = 0;
+        basic_actions["Sabotage"] = 1;
+        basic_actions["Repair"] = 1;
+        basic_actions["Figth+1AW"] = 1;
+        basic_actions["Draw"] = 1;
+        basic_actions["Plunder"] = 2;
+        basic_actions["Haste"] = 2;
+        basic_actions["Figth+1VW"] = 2;
+
+        var special_actions = [];
+        special_actions["Shoot X"] = 2;
+        special_actions["Shoot AW"] = 2;
+        special_actions["Shoot AW+X"] = 2;
+
+        var value_base_dice = [];
+        value_base_dice[-1] = 1;
+        value_base_dice[0] = 2;
+        value_base_dice[1] = 3;
+        value_base_dice[2] = 4;
+
+        var value_min_max_Dice = [];
+        value_min_max_Dice[-1] = [];
+        value_min_max_Dice[0] = [];
+        value_min_max_Dice[1] = [];
+        value_min_max_Dice[2] = [];
+
+        value_min_max_Dice[-1].min = 1;
+        value_min_max_Dice[-1].max = 1;
+        value_min_max_Dice[0].min = 2;
+        value_min_max_Dice[0].max = 5;
+        value_min_max_Dice[1].min = 3;
+        value_min_max_Dice[1].max = 6;
+        value_min_max_Dice[2].min = 4;
+        value_min_max_Dice[2].max = 6;
+
+        var value_balance_dice = [];
+        value_balance_dice[-1] = [];
+        value_balance_dice[-1][1] = 2;
+        value_balance_dice[0] = [];
+        value_balance_dice[0][2] = 4;
+        value_balance_dice[0][3] = 3;
+        value_balance_dice[0][4] = 2;
+        value_balance_dice[0][5] = 1;
+        value_balance_dice[1] = [];
+        value_balance_dice[1][3] = 5;
+        value_balance_dice[1][4] = 4;
+        value_balance_dice[1][5] = 3;
+        value_balance_dice[1][6] = 2;
+        value_balance_dice[2] = [];
+        value_balance_dice[2][4] = 6;
+        value_balance_dice[2][5] = 5;
+        value_balance_dice[2][6] = 4;
+
+
+        var card = [];
+        card.action = [];
+
+        var chooser;
+
+        window.onload =
+                function()
+                {
+                    var action_div = $("#actions");
+                    var options = [];
+                    options.push("<option value=\"none\">none</option>");
+                    for (var key in basic_actions) {
+                        options.push("<option value=\""+key+"\">"+key+"</option>");
+                    }
+                    for (var key in special_actions) {
+                        options.push("<option value=\""+key+"\">"+key+"</option>");
+                    }
+                    chooser = "<select id='actionSelector' name=\"Actions\" onchange='add_action()'>"+options.join("\n")+"</select>";
+
+                    action_div.html(chooser);
+                };
+
+        function change_dice(uuid, dice){
+            card.action[uuid].dice = dice;
+            calcmana();
+        }
+
+        function remove_action(uuid,element){
+            delete card.action[uuid];
+            element.remove();
+            calcmana();
+        }
+
+        function change_mod(uuid,value){
+            card.action[uuid].mod = value;
+            calcmana();
+        }
+
+        function add_action(){
+            var actionSelector = $("#actionSelector");
+            var value = actionSelector.val();
+            if(value == "none") return;
+
+            var uuid = guid();
+            card.action[uuid] = [];
+            card.action[uuid].name = value;
+            card.action[uuid].mod = 0;
+
+            var action = basic_actions[value];
+
+            if(action != null){
+
+                card.action[uuid].value = basic_actions[value];
+                card.action[uuid].dice = value_base_dice[basic_actions[value]];
+
+                var dice = card.action[uuid].dice;
+
+                $([ "<div>",
+                    (dice == 1?"<div style='display: inline'>1+:</div>":"<input value=\""+dice+"\" type='number' onchange=\"change_dice('"+uuid+"',$(this).val())\" min=\""+(value_min_max_Dice[basic_actions[value]].min)+"\" max=\""+(value_min_max_Dice[basic_actions[value]].max)+"\"/>"),
+                    "<div style='display: inline'>"+value+"</div>",
+                    "<input type='button' onclick=\"remove_action('"+uuid+"',$(this).parent())\" value='-'/>",
+                    "</div>"].join("\n")).insertBefore("#actionSelector");
+
+                calcmana();
+                return;
+            }
+
+            var action = special_actions[value];
+
+            if(action != null) {
+                card.action[uuid].value = special_actions[value];
+                card.action[uuid].dice = value_base_dice[special_actions[value]];
+                if (value.indexOf("AW") != -1)
+                    card.action[uuid].aw = true;
+
+                var dice = card.action[uuid].dice;
+
+                $(["<div>",
+                    (dice == 1 ? "<div style='display: inline'>1+:</div>" : "<input value=\""+dice+"\" type='number' onchange=\"change_dice('" + uuid + "',$(this).val())\" min=\"" + (value_min_max_Dice[special_actions[value]].min) + "\" max=\"" + (value_min_max_Dice[special_actions[value]].max) + "\"/>"),
+                    "<div style='display: inline'>" + value.replace("X", "<input style='width: 30px;' value='0' type='number' onchange=\"change_mod('" + uuid + "',$(this).val())\" />") + "</div>",
+                    "<input type='button' onclick=\"remove_action('" + uuid + "',$(this).parent())\" value='-'/>",
+                    "</div>"].join("\n")).insertBefore("#actionSelector");
+                calcmana();
+            }
+        }
+
+        function generate_base_action(name, value){
+            actions[name] = [];
+            actions[name].value = value
+        }
+
+        function calcmana(){
+            var f_balance = figthbalance()+actionbalance();
+            var mana = mana_values[f_balance];
+            card.mana = mana;
+            $("#mana").text(mana);
+            $("#balance").text(f_balance);
+        }
+
+        function figthbalance(){
+            var aw = $("#aw").val();
+            var vw = $("#vw").val();
+
+            card.aw = aw;
+            card.vw = vw;
+
+            return figth_balance_values[aw]+def_balance_values[vw];
+        }
+
+        function actionbalance(){
+            var sum = 0;
+            for (var key in card.action) {
+                act = card.action[key];
+                sum += parseInt(value_balance_dice[act.value][act.dice])+parseInt(act.mod)+(act.aw?card.aw:0);
+            }
+            console.log(sum);
+            return sum;
+        }
+    </script>
+</head>
+<body>
+ <div id="card" style="position: absolute;width: 300px; height: 500px;border-style: solid;">
+     <div id="mana" style=" position: absolute;
+                            top: 10px;
+                            right: 10px;
+                            border-style: solid;
+                            border-radius: 100%;
+                            width: 20px;
+                            height: 20px;
+                            text-align: center;
+                            ">4</div>
+     <div id="actions" style="  position: absolute;
+                                top: 50%;
+                                left: 25%;
+                                height: 30%;
+                                width: 100%;
+                                margin: -15% 0 0 -25%;">
+     </div>
+
+     <input onchange="calcmana()" min="0" max="4" value="4" type="number" id="aw" style="position: absolute; bottom: 10px;left: 10px;width: 100px;"/>
+     <input onchange="calcmana()" min="1" max="4" value="4" type="number" id="vw" style="position: absolute; bottom: 10px;right: 10px; width: 100px;"/>
+
+ </div>
+ <div id="balance" style=" position: absolute;
+                            top: 10px;
+                            right: 10px;
+                            border-style: solid;
+                            border-radius: 100%;
+                            width: 20px;
+                            height: 20px;
+                            text-align: center;
+                            ">4</div>
+</body>
+</html>
