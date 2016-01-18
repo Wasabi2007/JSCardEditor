@@ -172,6 +172,14 @@
             var f_balance = figthbalance()+actionbalance();
             var mana = mana_values[f_balance];
             card.mana = mana;
+
+            console.log(mana);
+
+            $("#mana").css("border-color", "black")
+            if(mana == null){
+                $("#mana").css("border-color", "red")
+            }
+
             $("#mana").text(mana);
             $("#balance").text(f_balance);
         }
@@ -192,7 +200,6 @@
                 act = card.action[key];
                 sum += parseInt(value_balance_dice[act.value][act.dice])+parseInt(act.mod)+(act.aw?card.aw:0);
             }
-            console.log(sum);
             return sum;
         }
     </script>
